@@ -13,30 +13,19 @@ class ToDoListViewController: UITableViewController {
     //create the array from Item class objects
     var itemArray = [Item]()
     //create an object to hold access to our userDefaults persistant data
-    let defaults = UserDefaults.standard
+    
+    //create an object to hold the filepath for the app
+    let dataFilePath = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first?.appendingPathComponent("items.plist")
+    // if other plist files need to be creates then new objects can be created with a new plist identifier. These can be encoded and decoded when needed.
     
     override func viewDidLoad() {
         super.viewDidLoad()
         
-        //create a property that uses the Item Class to hold a new item object (of type Item).
-        let newItem = Item()
-        //create the reference object
-        newItem.title = "Road Rage"
-        //create the code to append the object to the Array
-        itemArray.append(newItem)
+        print(dataFilePath!)
         
-        let newItem2 = Item()
-        newItem2.title = "Kill Bill"
-        itemArray.append(newItem2)
+        //call the decode method model
+        loadItems()
         
-        let newItem3 = Item()
-        newItem3.title = "Fat Sam"
-        itemArray.append(newItem3)
-        
-        //check the userDefaults array to see if anything is stored locally in the pList file. if so this is returned as the array.
-//        if let item = defaults.array(forKey: "ToDoListArray") as? [String]{
-//            itemArray = item
-//        }
     }
 
     //MARK: TableView DataSource Methods
@@ -46,12 +35,9 @@ class ToDoListViewController: UITableViewController {
         let cell = tableView.dequeueReusableCell(withIdentifier: "ToDoItemCell", for: indexPath)
         cell.textLabel?.text = itemArray[indexPath.row].title
         
-        //toggle the checkmark to display or hide when the cell is selected
-        if itemArray[indexPath.row].done == true {
-            cell.accessoryType = .checkmark
-        } else {
-            cell.accessoryType = .none
-        }
+        //toggle the checkmark to display or hide when the cell is selected using a ternary
+        cell.accessoryType = itemArray[indexPath.row].done == true ? .checkmark : .none
+
         return cell
     }
     
@@ -63,10 +49,11 @@ class ToDoListViewController: UITableViewController {
     // MARK: TableView Delegate methods
     override func tableView(_ tableView: UITableView, didSelectRowAt indexPath: IndexPath) {
 
+        //toggle the checkmark for the tableview item data and add it to the array in the pList file. Reload the tableview
         itemArray[indexPath.row].done = !itemArray[indexPath.row].done
-        tableView.reloadData()
+        saveItems()
 
-        // code to make the selected row of teh UI flask temporarily rather than premenantly highlight the row
+        // code to make the selected row of the UI flask temporarily rather than premenantly highlight the row
         tableView.deselectRow(at: indexPath, animated: true)
     }
     
@@ -81,8 +68,8 @@ class ToDoListViewController: UITableViewController {
             let newItem = Item()
             newItem.title = textField.text!
             self.itemArray.append(newItem)
-            self.defaults.set(self.itemArray, forKey: "ToDoListArray")
-            self.tableView.reloadData()
+            // save the appended items to the plist calling the saveItems model method
+            self.saveItems()
         }
         //Create the Label Text field element in the UI with a placeholder
         alert.addTextField { (alertTextField) in
@@ -94,5 +81,31 @@ class ToDoListViewController: UITableViewController {
         present(alert, animated: true, completion: nil)
     }
     
+    //Mark: Model Manipulation methods
+    
+    //create a method to update the pList file to reflect any changes made
+    func saveItems() {
+        let encoder = PropertyListEncoder()
+        do{
+            let data = try encoder.encode(itemArray)
+            try data.write(to: dataFilePath!)
+            
+        } catch {
+            print("Error encoding item array, \(error)")
+        }
+        self.tableView.reloadData()
+    }
+    
+    //create a decode method to call the encoded data from the plist file
+    func loadItems () {
+        if let data = try? Data (contentsOf: dataFilePath!) {
+            let decoder = PropertyListDecoder()
+            do {
+                itemArray = try decoder.decode([Item].self, from: data)
+            } catch {
+                print("error decoding the item array \(error)")
+            }
+        }
+    }
 }
 
